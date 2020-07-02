@@ -1,1 +1,2 @@
-# contador-tiros-react-native
+# Contador de Tiros
+### React Native
