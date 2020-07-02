@@ -1,13 +1,20 @@
 import React from 'react';
-import { Text, View, Button, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import * as speech from '@tensorflow-models/speech-commands';
-import { Reduction } from '@tensorflow/tfjs';
+import { Button, ThemeProvider } from 'react-native-elements';
+import { Ionicons } from '@expo/vector-icons';
+import { AntDesign } from '@expo/vector-icons'; 
+import * as Linking from 'expo-linking';
+
 
 export default class App extends React.Component {
 
-  url = "https://teachablemachine.withgoogle.com/models/wtgUsMu_O";
+  url = "https://contador-tiros.s3-sa-east-1.amazonaws.com";
+
+  recognizer: speech.SpeechCommandRecognizer | any = null;
 
   state = {
+    microphoneStatus: 0,
     shots: 0,
     score: {
       shot: 0,
@@ -17,8 +24,9 @@ export default class App extends React.Component {
 
 
   createModel = async () => {
+
     const checkpointURL = this.url + "/model.json";
-    const metadataURL = this.url +  "/metadata.json";
+    const metadataURL = this.url + "/metadata.json";
 
     const recognizer = speech.create(
       "BROWSER_FFT",
@@ -32,59 +40,112 @@ export default class App extends React.Component {
   }
 
   onPressRecord = async () => {
+
+    this.setState({ microphoneStatus: 1 });
+    
     try {
+      this.recognizer = await this.createModel();
+      const classLabels = this.recognizer.wordLabels();
 
-      let recognizer = await this.createModel();
-
-      const classLabels = recognizer.wordLabels(); // get class labels
-      console.log('Recognzier', recognizer);
-      recognizer.listen(async (result: any) => {
+      this.recognizer.listen(async (result: any) => {
         const scores = Array.from(result.scores);
-        console.log(this.state.shots);
+        console.log('Result', result);
+        
         this.setState({
+          score: {
+            shot: scores[0],
+            backgroundNoise: scores[1]
+          },
           shots: this.state.shots + 1
-        });
+        })
+        
       },
-        { probabilityThreshold: 0.90 }).catch(err => console.log(err));
+      { probabilityThreshold: 0.90 })
+      .then(() => {
+        this.setState({
+          microphoneStatus: 2
+        });
+      })
+      .catch((err: any) => console.log(err));
     } catch (e) {
       throw e;
       console.log('error', e);
     }
   }
 
+
+  onPressStopRecord = async () => {
+
+    this.setState({ microphoneStatus: 0 });
+  
+    await this.recognizer.stopListening();
+    
+  }
+
+  onPressLink = () => {
+    Linking.openURL('https://github.com/ahlan90');
+  }
+
   render() {
     return (
-      <View style={styles.content}>
-        
-        <Text style={styles.titleText}>
-          Contador de Tiros por Áudio
+      <ThemeProvider>
+        <View style={styles.content}>
+
+          <Text style={styles.titleText}>
+            {`Contador de Tiros \n Sonoro`}
         </Text>
 
-        <View>
-        <Text style={styles.counterNumber}>
-          {this.state.shots}
-        </Text>
-        <Text style={styles.counterText}>
-          Tiros
-        </Text>
+          <View style={{ width: "100%" }}>
+            <Text style={styles.precisionText}>
+              Precisão: {this.state.score.shot.toFixed(2)} %
+            </Text>
+            <Text style={styles.counterNumber}>
+              {this.state.shots}
+            </Text>
+            <Text style={styles.counterText}>
+              Tiros
+            </Text>
+          </View>
+
+          <View style={styles.buttonRecord}>
+            {
+              this.state.microphoneStatus == 2 
+              ?
+              <Button
+                icon={<Ionicons name="md-mic-off" size={24} color="white" />}
+                onPress={this.onPressStopRecord}
+                title="   PARAR CONTAGEM"
+                buttonStyle={{ backgroundColor: "red" }}
+                accessibilityLabel="Botão para encerrar a captura de áudio de tiros" />
+              :
+              <Button
+                icon={<Ionicons name="md-mic" size={24} color="white" />}
+                onPress={this.onPressRecord}
+                buttonStyle={{ backgroundColor: "#841584" }}
+                title="   INICIAR CONTAGEM"
+                loading={this.state.microphoneStatus == 1}
+                accessibilityLabel="Botão para captura de áudio de tiros" />
+            }
+          </View>
+
+          
+          <View>
+
+            <Button
+              icon={<AntDesign name="github" size={24} color="white" />}
+              onPress={this.onPressLink}
+              title="   Código Fonte"
+              titleStyle={{ color: "white" }}
+              type="clear"
+              accessibilityLabel="Botão para navegar para o repositório do código" />
+
+            <Text style={styles.author}>
+              Por Ahlan Guarnier, 2020
+            </Text>
+
+          </View>
         </View>
-        
-        <View style={styles.buttonRecord}>
-          <Button
-            onPress={this.onPressRecord}
-            title="Iniciar Contagem"
-            color="#841584"
-            accessibilityLabel="Botão para captura de áudio de tiros"/>
-        </View>
-
-        <Text style={styles.description}>
-          {`Experimento para contagem de tiros por áudio`}
-        </Text>
-
-        <Text style={styles.author}>
-          Por Ahlan Guarnier, 2020 
-        </Text>
-      </View>
+      </ThemeProvider>
     )
   }
 }
@@ -101,6 +162,7 @@ const styles = StyleSheet.create({
     fontSize: 35,
     fontWeight: "bold",
     color: "white",
+    width: "100%",
     textAlign: "center"
   },
   counterNumber: {
@@ -111,20 +173,27 @@ const styles = StyleSheet.create({
   },
   counterText: {
     fontSize: 30,
-    color: "white"
+    color: "white",
+    textAlign:"center"
+  },
+  precisionText: {
+    fontSize: 15,
+    color: "green",
+    textAlign: "center"
   },
   description: {
     fontSize: 18,
     color: "white",
-    textAlign:"center"
+    textAlign: "center"
   },
   author: {
     fontSize: 15,
+    paddingTop: 10,
     color: "white",
-    textAlign:"center",
+    textAlign: "center",
   },
   buttonRecord: {
     width: "80%"
   }
-  
+
 });
