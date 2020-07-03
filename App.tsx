@@ -83,7 +83,7 @@ export default class App extends React.Component {
   }
 
   onPressLink = () => {
-    Linking.openURL('https://github.com/ahlan90');
+    Linking.openURL('https://github.com/ahlan90/contador-tiros-react-native');
   }
 
   render() {
